@@ -417,12 +417,15 @@ cd guacamole-server-${GUACVERSION}/
 
 echo -e "${BLUE}Building Guacamole-Server with GCC $( gcc --version | head -n1 | grep -oP '\)\K.*' | awk '{print $1}' ) ${NC}"
 
+# Added --disable-guacenc flag to fix the following error:
+#ffmpeg-compat.c: In function ‘guacenc_avcodec_encode_video’:
+#ffmpeg-compat.c:140:5: error: ‘av_init_packet’ is deprecated [-Werror=deprecated-declarations]
 echo -e "${BLUE}Configuring Guacamole-Server. This might take a minute...${NC}"
-./configure --with-systemd-dir=/etc/systemd/system  &>> ${LOG}
+./configure --with-systemd-dir=/etc/systemd/system --disable-guacenc &>> ${LOG}
 if [ $? -ne 0 ]; then
     echo "Failed to configure guacamole-server"
     echo "Trying again with --enable-allow-freerdp-snapshots"
-    ./configure --with-systemd-dir=/etc/systemd/system --enable-allow-freerdp-snapshots
+    ./configure --with-systemd-dir=/etc/systemd/system --enable-allow-freerdp-snapshots --disable-guacenc
     if [ $? -ne 0 ]; then
         echo "Failed to configure guacamole-server - again"
         exit
@@ -568,7 +571,9 @@ if [ "${installMySQL}" = true ]; then
             fi
             echo -e "${YELLOW}Setting timezone as ${timezone}${NC}"
             # Fix for https://issues.apache.org/jira/browse/GUACAMOLE-760
-            mysql_tzinfo_to_sql /usr/share/zoneinfo 2>/dev/null | mysql -u root -D mysql -h ${mysqlHost} -P ${mysqlPort}
+            # For some reason, having "-P ${mysqlPort}" seemed to break root logins during this install
+            # I ended up getting it to work by adding "read" around each of these in the script and running the sql commands manually in a separate terminal, but this may work as well
+            mysql_tzinfo_to_sql /usr/share/zoneinfo 2>/dev/null | mysql -u root -D mysql -h ${mysqlHost} # -P ${mysqlPort}
             crudini --set ${mysqlconfig} mysqld default_time_zone "${timezone}"
             # Restart to apply
             service mysql restart
@@ -593,7 +598,7 @@ SQLCODE="
 SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='${guacDb}';"
 
 # Execute SQL code
-MYSQL_RESULT=$( echo ${SQLCODE} | mysql -u root -D information_schema -h ${mysqlHost} -P ${mysqlPort} )
+MYSQL_RESULT=$( echo ${SQLCODE} | mysql -u root -D information_schema -h ${mysqlHost} ) # -P ${mysqlPort} )
 if [[ $MYSQL_RESULT != "" ]]; then
     echo -e "${RED}It appears there is already a MySQL database (${guacDb}) on ${mysqlHost}${NC}" 1>&2
     echo -e "${RED}Try:    mysql -e 'DROP DATABASE ${guacDb}'${NC}" 1>&2
@@ -608,7 +613,7 @@ SQLCODE="
 SELECT COUNT(*) FROM mysql.user WHERE user = '${guacUser}';"
 
 # Execute SQL code
-MYSQL_RESULT=$( echo ${SQLCODE} | mysql -u root -D mysql -h ${mysqlHost} -P ${mysqlPort} | grep '0' )
+MYSQL_RESULT=$( echo ${SQLCODE} | mysql -u root -D mysql -h ${mysqlHost} | grep '0' ) # -P ${mysqlPort} | grep '0' )
 if [[ $MYSQL_RESULT == "" ]]; then
     echo -e "${RED}It appears there is already a MySQL user (${guacUser}) on ${mysqlHost}${NC}" 1>&2
     echo -e "${RED}Try:    mysql -e \"DROP USER '${guacUser}'@'${guacUserHost}'; FLUSH PRIVILEGES;\"${NC}" 1>&2
@@ -626,11 +631,11 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON ${guacDb}.* TO '${guacUser}'@'${guacUserHos
 FLUSH PRIVILEGES;"
 
 # Execute SQL code
-echo ${SQLCODE} | mysql -u root -D mysql -h ${mysqlHost} -P ${mysqlPort}
+echo ${SQLCODE} | mysql -u root -D mysql -h ${mysqlHost} # -P ${mysqlPort}
 
 # Add Guacamole schema to newly created database
 echo -e "${BLUE}Adding database tables...${NC}"
-cat guacamole-auth-jdbc-${GUACVERSION}/mysql/schema/*.sql | mysql -u root -D ${guacDb} -h ${mysqlHost} -P ${mysqlPort}
+cat guacamole-auth-jdbc-${GUACVERSION}/mysql/schema/*.sql | mysql -u root -D ${guacDb} -h ${mysqlHost} # -P ${mysqlPort}
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed${NC}" 1>&2
     exit 1
