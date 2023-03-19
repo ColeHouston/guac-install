@@ -85,7 +85,7 @@ fi
 if [[ -z "${installTOTP}" ]]; then
     # Prompt the user if they would like to install TOTP MFA, default of no
     echo -e -n "${CYAN}MFA: Would you like to install TOTP? (y/N): ${NC}"
-    read PROMPT
+    PROMPT="n"
     if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
         installTOTP=true
     else
@@ -96,7 +96,7 @@ fi
 if [[ -z "${installDUO}" ]]; then
     # Prompt the user if they would like to install DUO MFA, default of no
     echo -e -n "${CYAN}MFA: Would you like to install DUO? (y/N): ${NC}"
-    read PROMPT
+    PROMPT="n"
     if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
         installDUO=true
     else
@@ -217,7 +217,7 @@ fi
 
 
 # Start MySQL
-docker run --restart=always --detach --name=mysql -v ${MYSQLDATAFOLDER}:/var/lib/mysql --env="MYSQL_ROOT_PASSWORD=$mysqlrootpassword" --publish 3306:3306 healthcheck/mysql --default-authentication-plugin=mysql_native_password
+docker run --restart=always --detach --name=mysql -v ${MYSQLDATAFOLDER}:/var/lib/mysql --env="MYSQL_ROOT_PASSWORD=$mysqlrootpassword" --publish 127.0.0.1:3306:3306 healthcheck/mysql --default-authentication-plugin=mysql_native_password
 
 # Wait for the MySQL Health Check equal "healthy"
 echo "Waiting for MySQL to be healthy"
@@ -239,11 +239,11 @@ echo $SQLCODE | mysql -h 127.0.0.1 -P 3306 -u root -p$mysqlrootpassword
 cat guacamole-auth-jdbc-${GUACVERSION}/mysql/schema/*.sql | mysql -u root -p$mysqlrootpassword -h 127.0.0.1 -P 3306 guacamole_db
 
 docker run --restart=always --name guacd --detach guacamole/guacd:${GUACVERSION}
-docker run --restart=always --name guacamole --detach --link mysql:mysql --link guacd:guacd -v ${INSTALLFOLDER}:/etc/guacamole -e MYSQL_HOSTNAME=127.0.0.1 -e MYSQL_DATABASE=guacamole_db -e MYSQL_USER=guacamole_user -e MYSQL_PASSWORD=$guacdbuserpassword -e GUACAMOLE_HOME=/etc/guacamole -p 8080:8080 guacamole/guacamole:${GUACVERSION}
+docker run --restart=always --name guacamole --detach --link mysql:mysql --link guacd:guacd -v ${INSTALLFOLDER}:/etc/guacamole -e MYSQL_HOSTNAME=127.0.0.1 -e MYSQL_DATABASE=guacamole_db -e MYSQL_USER=guacamole_user -e MYSQL_PASSWORD=$guacdbuserpassword -e GUACAMOLE_HOME=/etc/guacamole -p 127.0.0.1:8000:8080 guacamole/guacamole:${GUACVERSION}
 
 # Done
 echo
-echo -e "${YELLOW}\nInstallation Complete\n- Visit: http://localhost:8080/guacamole/\n- Default login (username/password): guacadmin/guacadmin\n***Be sure to change the password***."
+echo -e "${YELLOW}\nInstallation Complete\n- Visit: http://localhost:8000/guacamole/\n- Default login (username/password): guacadmin/guacadmin\n***Be sure to change the password***."
 if [ "${installDUO}" = true ]; then
     echo -e "${YELLOW}\nDon't forget to configure Duo in guacamole.properties at ${INSTALLFOLDER}/. You will not be able to login otherwise.\nhttps://guacamole.apache.org/doc/${GUACVERSION}/gug/duo-auth.html${NC}"
 fi
