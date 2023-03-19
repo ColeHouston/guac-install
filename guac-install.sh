@@ -85,7 +85,7 @@ fi
 if [[ -z "${installTOTP}" ]]; then
     # Prompt the user if they would like to install TOTP MFA, default of no
     echo -e -n "${CYAN}MFA: Would you like to install TOTP? (y/N): ${NC}"
-    read PROMPT
+    PROMPT="n"
     if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
         installTOTP=true
     else
@@ -96,7 +96,7 @@ fi
 if [[ -z "${installDUO}" ]]; then
     # Prompt the user if they would like to install DUO MFA, default of no
     echo -e -n "${CYAN}MFA: Would you like to install DUO? (y/N): ${NC}"
-    read PROMPT
+    PROMPT="n"
     if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
         installDUO=true
     else
